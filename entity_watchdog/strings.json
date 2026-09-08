@@ -1,0 +1,48 @@
+{
+  "title": "Entity Watchdog",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Entity Watchdog",
+        "description": "This adds the Entity Watchdog integration. After setup, open “Configure” to add the sensors you want to monitor."
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Entity Watchdog",
+        "menu_options": {
+          "add": "Add sensor",
+          "edit": "Edit sensor",
+          "remove": "Remove sensor(s)"
+        }
+      },
+      "add": {
+        "title": "Add sensor",
+        "description": "Pick the entity that updates on every report (for a Shelly BLU or a Zigbee device, its signal-strength / LQI entity works well).",
+        "data": {
+          "name": "Name",
+          "entity_id": "Entity to monitor",
+          "timeout": "Wait time"
+        }
+      },
+      "edit": {
+        "title": "Edit sensor",
+        "data": { "id": "Sensor" }
+      },
+      "edit_form": {
+        "title": "Edit sensor",
+        "data": {
+          "name": "Name",
+          "entity_id": "Entity to monitor",
+          "timeout": "Wait time"
+        }
+      },
+      "remove": {
+        "title": "Remove sensor(s)",
+        "data": { "id": "Sensors" }
+      }
+    }
+  }
+}
