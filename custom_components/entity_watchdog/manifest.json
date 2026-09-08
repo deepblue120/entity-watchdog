@@ -1,0 +1,12 @@
+{
+  "domain": "entity_watchdog",
+  "name": "Entity Watchdog",
+  "codeowners": ["@deepblue120"],
+  "config_flow": true,
+  "documentation": "https://github.com/deepblue120/entity-watchdog",
+  "issue_tracker": "https://github.com/deepblue120/entity-watchdog/issues",
+  "integration_type": "hub",
+  "iot_class": "calculated",
+  "single_config_entry": true,
+  "version": "2.0.0"
+}
