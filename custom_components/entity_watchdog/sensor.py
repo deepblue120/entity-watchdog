@@ -9,6 +9,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.restore_state import RestoreEntity
 
 try:  # HA 2025.2+
     from homeassistant.helpers.entity_platform import (
@@ -19,6 +20,7 @@ except ImportError:  # older cores
         AddEntitiesCallback as AddEntities,
     )
 from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.util import dt as dt_util
 
 from .const import CONF_ENTITY_ID, CONF_ID, CONF_NAME, get_watchers
 
@@ -47,7 +49,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class WatchdogLastSeenSensor(SensorEntity):
+class WatchdogLastSeenSensor(SensorEntity, RestoreEntity):
     """Reports the timestamp of the monitored entity's last update."""
 
     _attr_device_class = SensorDeviceClass.TIMESTAMP
@@ -59,8 +61,19 @@ class WatchdogLastSeenSensor(SensorEntity):
         self._attr_name = f"{watcher[CONF_NAME]} zuletzt gesehen"
         self._attr_unique_id = f"{entry_id}_{watcher[CONF_ID]}_last_seen"
         self._value: datetime | None = None
+        # Raw state string of the source the last time it looked like a
+        # genuine new report. Restarting HA alone must not change this.
+        self._last_value: str | None = None
 
     async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        last_state = await self.async_get_last_state()
+        if last_state is not None and last_state.state not in (
+            STATE_UNAVAILABLE,
+            "unknown",
+        ):
+            self._value = dt_util.parse_datetime(last_state.state)
+            self._last_value = last_state.attributes.get("last_value")
         self._evaluate()
         self.async_on_remove(
             async_track_state_change_event(
@@ -78,8 +91,18 @@ class WatchdogLastSeenSensor(SensorEntity):
         state = self.hass.states.get(self._source)
         if state is None or state.state == STATE_UNAVAILABLE:
             return
-        self._value = state.last_reported or state.last_updated
+        if state.state != self._last_value:
+            # Genuine new reading from the source.
+            self._last_value = state.state
+            self._value = state.last_reported or state.last_updated
+        elif self._value is None:
+            # First run ever, nothing restored, nothing to compare yet.
+            self._value = state.last_reported or state.last_updated
 
     @property
     def native_value(self) -> datetime | None:
         return self._value
+
+    @property
+    def extra_state_attributes(self) -> dict[str, object]:
+        return {"last_value": self._last_value}
