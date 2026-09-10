@@ -20,6 +20,13 @@
       },
       "add": {
         "title": "Add sensor",
+        "description": "Pick the device you want to monitor. On the next step you'll choose which of its entities to watch.",
+        "data": {
+          "device_id": "Device"
+        }
+      },
+      "add_entity": {
+        "title": "Add sensor",
         "description": "Pick the entity that updates on every report (for a Shelly BLU or a Zigbee device, its signal-strength / LQI entity works well).",
         "data": {
           "name": "Name",
@@ -41,7 +48,7 @@
       },
       "remove": {
         "title": "Remove sensor(s)",
-        "data": { "id": "Sensors" }
+        "data": { "id": "Sensoren" }
       }
     }
   }
