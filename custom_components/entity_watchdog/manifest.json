@@ -8,5 +8,7 @@
   "integration_type": "hub",
   "iot_class": "calculated",
   "single_config_entry": true,
+
   "version": "2.3.0"
 }
+

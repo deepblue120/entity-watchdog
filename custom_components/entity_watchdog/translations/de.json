@@ -20,6 +20,13 @@
       },
       "add": {
         "title": "Sensor hinzufügen",
+        "description": "Wähle das Gerät, das du überwachen möchtest. Im nächsten Schritt wählst du dann, welche seiner Entitäten überwacht werden soll.",
+        "data": {
+          "device_id": "Gerät"
+        }
+      },
+      "add_entity": {
+        "title": "Sensor hinzufügen",
         "description": "Wähle die Entität, die sich bei jeder Meldung aktualisiert (bei Shelly BLU oder Zigbee eignet sich die Signalstärke-/LQI-Entität gut).",
         "data": {
           "name": "Name",

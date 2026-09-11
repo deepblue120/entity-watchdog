@@ -9,9 +9,10 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_UNAVAILABLE
+from homeassistant.const import STATE_ON, STATE_UNAVAILABLE
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.restore_state import RestoreEntity
 
 try:  # HA 2025.2+
     from homeassistant.helpers.entity_platform import (
@@ -35,7 +36,6 @@ from .const import (
     timeout_seconds,
 )
 
-# How often the age of a monitored entity is re-checked.
 CHECK_INTERVAL = timedelta(seconds=30)
 PLATFORM = "binary_sensor"
 
@@ -63,7 +63,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class WatchdogBinarySensor(BinarySensorEntity):
+class WatchdogBinarySensor(BinarySensorEntity, RestoreEntity):
     """On when the monitored entity has not reported within the wait time."""
 
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
@@ -77,8 +77,19 @@ class WatchdogBinarySensor(BinarySensorEntity):
         self._attr_unique_id = f"{entry_id}_{watcher[CONF_ID]}_overdue"
         self._is_on = False
         self._last_seen: datetime | None = None
+        # Raw state string of the source the last time it looked like a
+        # genuine new report. Restarting HA alone must not change this.
+        self._last_value: str | None = None
 
     async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        last_state = await self.async_get_last_state()
+        if last_state is not None:
+            self._is_on = last_state.state == STATE_ON
+            self._last_value = last_state.attributes.get("last_value")
+            last_seen_str = last_state.attributes.get("last_seen")
+            if last_seen_str:
+                self._last_seen = dt_util.parse_datetime(last_seen_str)
         self._evaluate()
         self.async_on_remove(
             async_track_time_interval(self.hass, self._handle_interval, CHECK_INTERVAL)
@@ -105,9 +116,14 @@ class WatchdogBinarySensor(BinarySensorEntity):
         if state is None or state.state == STATE_UNAVAILABLE:
             self._is_on = True
             return
-        last = state.last_reported or state.last_updated
-        self._last_seen = last
-        age = (dt_util.utcnow() - last).total_seconds()
+        if state.state != self._last_value:
+            # Genuine new reading from the source.
+            self._last_value = state.state
+            self._last_seen = state.last_reported or state.last_updated
+        elif self._last_seen is None:
+            # First run ever, nothing restored, nothing to compare yet.
+            self._last_seen = state.last_reported or state.last_updated
+        age = (dt_util.utcnow() - self._last_seen).total_seconds()
         self._is_on = age > self._timeout
 
     @property
@@ -119,5 +135,6 @@ class WatchdogBinarySensor(BinarySensorEntity):
         return {
             "monitored_entity": self._source,
             "last_seen": self._last_seen.isoformat() if self._last_seen else None,
+            "last_value": self._last_value,
             "timeout_seconds": self._timeout,
         }

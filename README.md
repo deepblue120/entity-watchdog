@@ -1,6 +1,6 @@
 # Entity Watchdog
 
-Eine Home Assistant Integration zur Überwachung von Entitäten.
+Eine Home Assistant Integration zur Überwachung von Geräten mithilfe von Zeitstempeln der letzten Meldung/Änderung einer Entität.
 
 ## Installation über HACS
 
