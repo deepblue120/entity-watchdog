@@ -14,6 +14,7 @@
         "title": "Entity Watchdog",
         "menu_options": {
           "add": "Add sensor",
+          "add_bulk": "Add multiple devices (by integration)",
           "edit": "Edit sensor",
           "remove": "Remove sensor(s)"
         }
@@ -34,6 +35,21 @@
           "timeout": "Wait time"
         }
       },
+      "add_bulk": {
+        "title": "Add multiple devices",
+        "description": "Pick the integration whose devices you want to monitor, e.g. BTHome.",
+        "data": {
+          "integration": "Integration"
+        }
+      },
+      "add_bulk_devices": {
+        "title": "Add multiple devices",
+        "description": "All devices of this integration that are not monitored yet are ticked. Untick the ones you don't want. The entity shown in brackets is picked automatically (signal strength first, otherwise temperature or humidity) and can be changed later via “Edit sensor”.\n\nDevices skipped because no suitable entity was found: {skipped}",
+        "data": {
+          "device_ids": "Devices",
+          "timeout": "Wait time"
+        }
+      },
       "edit": {
         "title": "Edit sensor",
         "data": { "id": "Sensor" }
@@ -50,6 +66,12 @@
         "title": "Remove sensor(s)",
         "data": { "id": "Sensors" }
       }
+    },
+    "error": {
+      "no_selection": "Select at least one device."
+    },
+    "abort": {
+      "no_devices": "No devices available to add: every device of this integration is already monitored or has no suitable entity (an enabled signal-strength, temperature or humidity sensor)."
     }
   }
 }

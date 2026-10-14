@@ -14,6 +14,7 @@
         "title": "Entity Watchdog",
         "menu_options": {
           "add": "Sensor hinzufügen",
+          "add_bulk": "Mehrere Geräte hinzufügen (nach Integration)",
           "edit": "Sensor bearbeiten",
           "remove": "Sensor(en) entfernen"
         }
@@ -34,6 +35,21 @@
           "timeout": "Wartezeit"
         }
       },
+      "add_bulk": {
+        "title": "Mehrere Geräte hinzufügen",
+        "description": "Wähle die Integration, deren Geräte du überwachen möchtest, z. B. BTHome.",
+        "data": {
+          "integration": "Integration"
+        }
+      },
+      "add_bulk_devices": {
+        "title": "Mehrere Geräte hinzufügen",
+        "description": "Alle noch nicht überwachten Geräte dieser Integration sind angehakt. Entferne die Haken bei den Geräten, die du nicht möchtest. Die Entität in Klammern wird automatisch gewählt (bevorzugt Signalstärke, sonst Temperatur oder Feuchte) und lässt sich später über „Sensor bearbeiten“ ändern.\n\nÜbersprungene Geräte ohne passende Entität: {skipped}",
+        "data": {
+          "device_ids": "Geräte",
+          "timeout": "Wartezeit"
+        }
+      },
       "edit": {
         "title": "Sensor bearbeiten",
         "data": { "id": "Sensor" }
@@ -50,6 +66,12 @@
         "title": "Sensor(en) entfernen",
         "data": { "id": "Sensoren" }
       }
+    },
+    "error": {
+      "no_selection": "Wähle mindestens ein Gerät aus."
+    },
+    "abort": {
+      "no_devices": "Keine Geräte zum Hinzufügen: Alle Geräte dieser Integration werden bereits überwacht oder haben keine passende Entität (aktivierter Signalstärke-, Temperatur- oder Feuchtesensor)."
     }
   }
 }
