@@ -34,6 +34,7 @@ from .const import (
     CONF_NAME,
     get_watchers,
     timeout_seconds,
+    watcher_device_info,
 )
 
 CHECK_INTERVAL = timedelta(seconds=30)
@@ -75,6 +76,7 @@ class WatchdogBinarySensor(BinarySensorEntity, RestoreEntity):
         self._timeout: int = timeout_seconds(watcher)
         self._attr_name = f"{watcher[CONF_NAME]} überfällig"
         self._attr_unique_id = f"{entry_id}_{watcher[CONF_ID]}_overdue"
+        self._attr_device_info = watcher_device_info(watcher)
         self._is_on = False
         self._last_seen: datetime | None = None
         # Raw state string of the source the last time it looked like a
