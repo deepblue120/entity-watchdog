@@ -4,9 +4,13 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_UNAVAILABLE
+from homeassistant.const import PERCENTAGE, STATE_UNAVAILABLE, STATE_UNKNOWN, EntityCategory
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.restore_state import RestoreEntity
@@ -22,7 +26,18 @@ except ImportError:  # older cores
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.util import dt as dt_util
 
-from .const import CONF_ENTITY_ID, CONF_ID, CONF_NAME, get_watchers
+from .const import (
+    BATTERY_TYPES,
+    CONF_BATTERY_COUNT,
+    CONF_BATTERY_ENTITY,
+    CONF_BATTERY_TYPE,
+    CONF_ENTITY_ID,
+    CONF_ID,
+    CONF_NAME,
+    DEFAULT_BATTERY_COUNT,
+    get_watchers,
+    watcher_device_info,
+)
 
 PLATFORM = "sensor"
 
@@ -41,10 +56,14 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntities,
 ) -> None:
-    entities = [
-        WatchdogLastSeenSensor(entry.entry_id, watcher)
-        for watcher in get_watchers(entry)
-    ]
+    entities: list[SensorEntity] = []
+    for watcher in get_watchers(entry):
+        entities.append(WatchdogLastSeenSensor(entry.entry_id, watcher))
+        if watcher.get(CONF_BATTERY_ENTITY):
+            entities.append(WatchdogBatteryLevelSensor(entry.entry_id, watcher))
+        if watcher.get(CONF_BATTERY_TYPE):
+            entities.append(WatchdogBatteryTypeSensor(entry.entry_id, watcher))
+            entities.append(WatchdogBatteryCountSensor(entry.entry_id, watcher))
     _purge_removed(hass, entry, {e.unique_id for e in entities})
     async_add_entities(entities)
 
@@ -60,6 +79,7 @@ class WatchdogLastSeenSensor(SensorEntity, RestoreEntity):
         self._source: str = watcher[CONF_ENTITY_ID]
         self._attr_name = f"{watcher[CONF_NAME]} zuletzt gesehen"
         self._attr_unique_id = f"{entry_id}_{watcher[CONF_ID]}_last_seen"
+        self._attr_device_info = watcher_device_info(watcher)
         self._value: datetime | None = None
         # Raw state string of the source the last time it looked like a
         # genuine new report. Restarting HA alone must not change this.
@@ -106,3 +126,92 @@ class WatchdogLastSeenSensor(SensorEntity, RestoreEntity):
     @property
     def extra_state_attributes(self) -> dict[str, object]:
         return {"last_value": self._last_value}
+
+
+class WatchdogBatteryLevelSensor(SensorEntity):
+    """Mirrors the battery level reported by the monitored device."""
+
+    _attr_device_class = SensorDeviceClass.BATTERY
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = PERCENTAGE
+    _attr_should_poll = False
+    _attr_has_entity_name = False
+
+    def __init__(self, entry_id: str, watcher: dict) -> None:
+        self._source: str = watcher[CONF_BATTERY_ENTITY]
+        self._attr_name = f"{watcher[CONF_NAME]} Batteriestand"
+        self._attr_unique_id = f"{entry_id}_{watcher[CONF_ID]}_battery_level"
+        self._attr_device_info = watcher_device_info(watcher)
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            async_track_state_change_event(
+                self.hass, [self._source], self._handle_source_change
+            )
+        )
+
+    @callback
+    def _handle_source_change(self, event: Event[EventStateChangedData]) -> None:
+        self.async_write_ha_state()
+
+    @property
+    def available(self) -> bool:
+        state = self.hass.states.get(self._source)
+        return state is not None and state.state != STATE_UNAVAILABLE
+
+    @property
+    def native_value(self) -> float | None:
+        state = self.hass.states.get(self._source)
+        if state is None or state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
+            return None
+        try:
+            return float(state.state)
+        except ValueError:
+            return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, object]:
+        return {"battery_entity": self._source}
+
+
+class WatchdogBatteryTypeSensor(SensorEntity):
+    """The configured battery type (e.g. CR2032)."""
+
+    _attr_should_poll = False
+    _attr_has_entity_name = False
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, entry_id: str, watcher: dict) -> None:
+        self._value: str = watcher[CONF_BATTERY_TYPE]
+        self._attr_name = f"{watcher[CONF_NAME]} Batterietyp"
+        self._attr_unique_id = f"{entry_id}_{watcher[CONF_ID]}_battery_type"
+        self._attr_device_info = watcher_device_info(watcher)
+        # Enum sensors may only report one of their options, so a custom
+        # (typed-in) type is exposed as a plain text sensor instead.
+        if self._value in BATTERY_TYPES:
+            self._attr_device_class = SensorDeviceClass.ENUM
+            self._attr_options = BATTERY_TYPES
+
+    @property
+    def native_value(self) -> str:
+        return self._value
+
+
+class WatchdogBatteryCountSensor(SensorEntity):
+    """Number of batteries the device needs."""
+
+    _attr_should_poll = False
+    _attr_has_entity_name = False
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:battery-plus-variant"
+
+    def __init__(self, entry_id: str, watcher: dict) -> None:
+        self._value: int = int(watcher.get(CONF_BATTERY_COUNT) or DEFAULT_BATTERY_COUNT)
+        self._attr_name = f"{watcher[CONF_NAME]} Batterieanzahl"
+        self._attr_unique_id = f"{entry_id}_{watcher[CONF_ID]}_battery_count"
+        self._attr_device_info = watcher_device_info(watcher)
+
+    @property
+    def native_value(self) -> int:
+        return self._value

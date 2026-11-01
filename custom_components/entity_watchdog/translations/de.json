@@ -32,7 +32,10 @@
         "data": {
           "name": "Name",
           "entity_id": "Zu überwachende Entität",
-          "timeout": "Wartezeit"
+          "timeout": "Wartezeit",
+          "battery_entity": "Batterie-Entität (optional)",
+          "battery_type": "Batterietyp (optional)",
+          "battery_count": "Anzahl Batterien"
         }
       },
       "add_bulk": {
@@ -44,10 +47,12 @@
       },
       "add_bulk_devices": {
         "title": "Mehrere Geräte hinzufügen",
-        "description": "Alle noch nicht überwachten Geräte dieser Integration sind angehakt. Entferne die Haken bei den Geräten, die du nicht möchtest. Die Entität in Klammern wird automatisch gewählt (bevorzugt Signalstärke, sonst Temperatur oder Feuchte) und lässt sich später über „Sensor bearbeiten“ ändern.\n\nÜbersprungene Geräte ohne passende Entität: {skipped}",
+        "description": "Alle noch nicht überwachten Geräte dieser Integration sind angehakt. Entferne die Haken bei den Geräten, die du nicht möchtest. Die Entität in Klammern wird automatisch gewählt (bevorzugt Signalstärke, sonst Temperatur oder Feuchte) und lässt sich später über „Sensor bearbeiten“ ändern. Die Batterie-Entität wird je Gerät automatisch erkannt. Batterietyp und Anzahl (optional) gelten für alle ausgewählten Geräte.\n\nÜbersprungene Geräte ohne passende Entität: {skipped}",
         "data": {
           "device_ids": "Geräte",
-          "timeout": "Wartezeit"
+          "timeout": "Wartezeit",
+          "battery_type": "Batterietyp (optional)",
+          "battery_count": "Anzahl Batterien"
         }
       },
       "edit": {
@@ -59,7 +64,10 @@
         "data": {
           "name": "Name",
           "entity_id": "Zu überwachende Entität",
-          "timeout": "Wartezeit"
+          "timeout": "Wartezeit",
+          "battery_entity": "Batterie-Entität (optional)",
+          "battery_type": "Batterietyp (optional)",
+          "battery_count": "Anzahl Batterien"
         }
       },
       "remove": {

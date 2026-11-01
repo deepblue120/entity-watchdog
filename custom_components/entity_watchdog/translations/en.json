@@ -32,7 +32,10 @@
         "data": {
           "name": "Name",
           "entity_id": "Entity to monitor",
-          "timeout": "Wait time"
+          "timeout": "Wait time",
+          "battery_entity": "Battery entity (optional)",
+          "battery_type": "Battery type (optional)",
+          "battery_count": "Number of batteries"
         }
       },
       "add_bulk": {
@@ -44,10 +47,12 @@
       },
       "add_bulk_devices": {
         "title": "Add multiple devices",
-        "description": "All devices of this integration that are not monitored yet are ticked. Untick the ones you don't want. The entity shown in brackets is picked automatically (signal strength first, otherwise temperature or humidity) and can be changed later via “Edit sensor”.\n\nDevices skipped because no suitable entity was found: {skipped}",
+        "description": "All devices of this integration that are not monitored yet are ticked. Untick the ones you don't want. The entity shown in brackets is picked automatically (signal strength first, otherwise temperature or humidity) and can be changed later via “Edit sensor”. The battery entity is detected automatically per device. Battery type and count (optional) apply to all selected devices.\n\nDevices skipped because no suitable entity was found: {skipped}",
         "data": {
           "device_ids": "Devices",
-          "timeout": "Wait time"
+          "timeout": "Wait time",
+          "battery_type": "Battery type (optional)",
+          "battery_count": "Number of batteries"
         }
       },
       "edit": {
@@ -59,7 +64,10 @@
         "data": {
           "name": "Name",
           "entity_id": "Entity to monitor",
-          "timeout": "Wait time"
+          "timeout": "Wait time",
+          "battery_entity": "Battery entity (optional)",
+          "battery_type": "Battery type (optional)",
+          "battery_count": "Number of batteries"
         }
       },
       "remove": {

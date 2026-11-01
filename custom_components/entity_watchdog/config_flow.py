@@ -23,6 +23,9 @@ from homeassistant.helpers.selector import (
     DurationSelectorConfig,
     EntitySelector,
     EntitySelectorConfig,
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
@@ -30,11 +33,16 @@ from homeassistant.helpers.selector import (
 )
 
 from .const import (
+    BATTERY_TYPES,
+    CONF_BATTERY_COUNT,
+    CONF_BATTERY_ENTITY,
+    CONF_BATTERY_TYPE,
     CONF_ENTITY_ID,
     CONF_ID,
     CONF_NAME,
     CONF_TIMEOUT,
     CONF_WATCHERS,
+    DEFAULT_BATTERY_COUNT,
     DEFAULT_TIMEOUT,
     DOMAIN,
     add_watcher,
@@ -59,9 +67,33 @@ def _device_schema() -> vol.Schema:
     )
 
 
+def _battery_type_selector() -> SelectSelector:
+    return SelectSelector(
+        SelectSelectorConfig(
+            options=BATTERY_TYPES,
+            custom_value=True,
+            mode=SelectSelectorMode.DROPDOWN,
+        )
+    )
+
+
+def _battery_count_selector() -> NumberSelector:
+    return NumberSelector(
+        NumberSelectorConfig(min=1, max=20, step=1, mode=NumberSelectorMode.BOX)
+    )
+
+
+def _optional(key: str, suggested: Any) -> vol.Optional:
+    """Optional field that is pre-filled but can be cleared by the user."""
+    if suggested in (None, ""):
+        return vol.Optional(key)
+    return vol.Optional(key, description={"suggested_value": suggested})
+
+
 def _watcher_schema(
     current: dict[str, Any] | None = None,
     entity_ids: list[str] | None = None,
+    battery_entity: str | None = None,
 ) -> vol.Schema:
     current = current or {}
     fields: dict[Any, Any] = {}
@@ -83,6 +115,19 @@ def _watcher_schema(
     fields[
         vol.Required(CONF_TIMEOUT, default=current.get(CONF_TIMEOUT, DEFAULT_TIMEOUT))
     ] = DurationSelector(DurationSelectorConfig(enable_day=False))
+
+    fields[_optional(CONF_BATTERY_ENTITY, battery_entity)] = EntitySelector(
+        EntitySelectorConfig(domain="sensor", device_class="battery")
+    )
+    fields[_optional(CONF_BATTERY_TYPE, current.get(CONF_BATTERY_TYPE))] = (
+        _battery_type_selector()
+    )
+    fields[
+        vol.Optional(
+            CONF_BATTERY_COUNT,
+            default=current.get(CONF_BATTERY_COUNT) or DEFAULT_BATTERY_COUNT,
+        )
+    ] = _battery_count_selector()
     return vol.Schema(fields)
 
 
@@ -99,6 +144,23 @@ def _pick_entity(entries: list[er.RegistryEntry], domain: str) -> str | None:
         for entry in candidates:
             if (entry.device_class or entry.original_device_class) == device_class:
                 return entry.entity_id
+    return None
+
+
+def _find_battery_entity(
+    entity_reg: er.EntityRegistry, device_id: str | None
+) -> str | None:
+    """Enabled battery-level sensor of a device, if it has one."""
+    if not device_id:
+        return None
+    for entry in er.async_entries_for_device(
+        entity_reg, device_id, include_disabled_entities=False
+    ):
+        if (
+            entry.domain == "sensor"
+            and (entry.device_class or entry.original_device_class) == "battery"
+        ):
+            return entry.entity_id
     return None
 
 
@@ -223,6 +285,7 @@ class EntityWatchdogOptionsFlow(OptionsFlow):
             return self._save(watchers)
 
         entity_reg = er.async_get(self.hass)
+        battery_entity = _find_battery_entity(entity_reg, self._selected_device)
         entries = er.async_entries_for_device(
             entity_reg, self._selected_device, include_disabled_entities=False
         )
@@ -230,7 +293,9 @@ class EntityWatchdogOptionsFlow(OptionsFlow):
 
         return self.async_show_form(
             step_id="add_entity",
-            data_schema=_watcher_schema(entity_ids=entity_ids),
+            data_schema=_watcher_schema(
+                entity_ids=entity_ids, battery_entity=battery_entity
+            ),
         )
 
     async def async_step_add_bulk(
@@ -270,6 +335,7 @@ class EntityWatchdogOptionsFlow(OptionsFlow):
             if not selected:
                 errors["base"] = "no_selection"
             else:
+                entity_reg = er.async_get(self.hass)
                 for device_id in selected:
                     name, entity_id = candidates[device_id]
                     watchers = add_watcher(
@@ -278,6 +344,11 @@ class EntityWatchdogOptionsFlow(OptionsFlow):
                             CONF_NAME: name,
                             CONF_ENTITY_ID: entity_id,
                             CONF_TIMEOUT: user_input[CONF_TIMEOUT],
+                            CONF_BATTERY_ENTITY: _find_battery_entity(
+                                entity_reg, device_id
+                            ),
+                            CONF_BATTERY_TYPE: user_input.get(CONF_BATTERY_TYPE),
+                            CONF_BATTERY_COUNT: user_input.get(CONF_BATTERY_COUNT),
                         },
                     )
                 return self._save(watchers)
@@ -302,6 +373,10 @@ class EntityWatchdogOptionsFlow(OptionsFlow):
                 vol.Required(CONF_TIMEOUT, default=DEFAULT_TIMEOUT): DurationSelector(
                     DurationSelectorConfig(enable_day=False)
                 ),
+                vol.Optional(CONF_BATTERY_TYPE): _battery_type_selector(),
+                vol.Optional(
+                    CONF_BATTERY_COUNT, default=DEFAULT_BATTERY_COUNT
+                ): _battery_count_selector(),
             }
         )
         return self.async_show_form(
@@ -330,8 +405,20 @@ class EntityWatchdogOptionsFlow(OptionsFlow):
             watchers = update_watcher(watchers, self._selected, user_input)
             return self._save(watchers)
         current = next((w for w in watchers if w[CONF_ID] == self._selected), None)
+        if current is not None and CONF_BATTERY_ENTITY in current:
+            battery_entity = current[CONF_BATTERY_ENTITY]
+        elif current is not None:
+            # Watcher predates battery support: offer the device's battery sensor.
+            entity_reg = er.async_get(self.hass)
+            source = entity_reg.async_get(current[CONF_ENTITY_ID])
+            battery_entity = _find_battery_entity(
+                entity_reg, source.device_id if source else None
+            )
+        else:
+            battery_entity = None
         return self.async_show_form(
-            step_id="edit_form", data_schema=_watcher_schema(current)
+            step_id="edit_form",
+            data_schema=_watcher_schema(current, battery_entity=battery_entity),
         )
 
     async def async_step_remove(
